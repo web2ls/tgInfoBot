@@ -49,12 +49,11 @@ type exactTime struct {
 
 var buttonsMarkup = tgbotapi.NewReplyKeyboard(
 	tgbotapi.NewKeyboardButtonRow(
-		tgbotapi.NewKeyboardButton("Курсы валют"),
 		tgbotapi.NewKeyboardButton("Точное время (московское)"),
 	),
 )
 
-var testURL = "https://yandex.com/time/sync.json?geo=213"
+var timeURL = "https://yandex.com/time/sync.json?geo=213"
 
 const msInSec = 1000
 
@@ -69,11 +68,10 @@ func getTimeAsString(timestamp int) string {
 func main() {
 	fmt.Println("Bot has been started...")
 
-	text := `{"time":1587963941623,"clocks":{"213":{"id":213,"name":"Москва","offset":10800000,"offsetString":"UTC+3:00","showSunriseSunset":true,"sunrise":"04:55","sunset":"20:00","isNight":false,"skyColor":"#a0cdff","weather":{"temp":6,"icon":"skc-d","link":"https://yandex.ru/pogoda/moscow"},"parents":[{"id":225,"name":"Россия"}]}}}`
-
 	TOKEN := os.Getenv("TOKEN")
 	bot, err := tgbotapi.NewBotAPI(TOKEN)
 	if err != nil {
+		log.Println(err)
 		panic(err)
 	}
 
@@ -88,49 +86,43 @@ func main() {
 
 	for update := range updates {
 		msg := tgbotapi.NewMessage(update.Message.Chat.ID, "")
-		switch update.Message.Command() {
-		case "start":
-			msg.Text = "You are wellcome"
 
-		default:
-			msg.Text = "Неизвестная команда. Пардоньте"
-		}
+		if update.Message.IsCommand() {
+			switch update.Message.Command() {
+			case "start":
+				msg.Text = "You are wellcome"
 
-		switch update.Message.Text {
-		case "Курсы валют":
-			testData := exactTime{}
-			data := exactTime{}
-
-			textBytes := []byte(text)
-			err := json.Unmarshal(textBytes, &testData)
-			if err != nil {
-				log.Println(err)
+			default:
+				msg.Text = "Unknown command, sorry"
 			}
+		} else {
+			switch update.Message.Text {
+			case "Точное время (московское)":
+				data := exactTime{}
 
-			fmt.Println("message before make asunc call")
-			res, err := http.Get(testURL)
-			if err != nil {
-				log.Println(err)
+				res, err := http.Get(timeURL)
+				if err != nil {
+					log.Println(err)
+				}
+
+				defer res.Body.Close()
+
+				body, err := ioutil.ReadAll(res.Body)
+				if err != nil {
+					log.Println(err)
+				}
+
+				err = json.Unmarshal(body, &data)
+				if err != nil {
+					log.Println(err)
+				}
+
+				getTimeAsString(data.Time)
+				msg.Text = getTimeAsString(data.Time)
+
+			default:
+				msg.Text = "I don't know what is this..."
 			}
-
-			defer res.Body.Close()
-
-			body, err := ioutil.ReadAll(res.Body)
-			if err != nil {
-				log.Println(err)
-			}
-
-			err = json.Unmarshal(body, &data)
-			if err != nil {
-				log.Println(err)
-			}
-
-			getTimeAsString(data.Time)
-
-			msg.Text = getTimeAsString(data.Time)
-
-		default:
-			msg.Text = "Боюсь, что не понял вас..."
 		}
 
 		msg.ReplyMarkup = buttonsMarkup
