@@ -59,9 +59,11 @@ const msInSec = 1000
 
 func getTimeAsString(timestamp int) string {
 	fullDate := time.Unix(int64(timestamp/msInSec), 0)
-	hour := strconv.Itoa(fullDate.Hour())
-	minute := strconv.Itoa(fullDate.Minute())
-	second := strconv.Itoa(fullDate.Second())
+	location, _ := time.LoadLocation("Europe/Moscow")
+	fullDateByLocation := fullDate.In(location)
+	hour := strconv.Itoa(fullDateByLocation.Hour())
+	minute := strconv.Itoa(fullDateByLocation.Minute())
+	second := strconv.Itoa(fullDateByLocation.Second())
 	return fmt.Sprintf("%s : %s : %s", string(hour), string(minute), string(second))
 }
 
