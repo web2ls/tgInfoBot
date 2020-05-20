@@ -13,38 +13,8 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 )
 
-type weather struct {
-	Temp int    `json:"temp"`
-	Icon string `json:"icon"`
-	Link string `json:"link"`
-}
-
-type parent struct {
-	ID   int    `json:"id"`
-	Name string `json:"name"`
-}
-
-type zoneID struct {
-	ID                int      `json:"id"`
-	Name              string   `json:"name"`
-	Offset            int      `json:"offset"`
-	OffsetString      string   `json:"offsetString"`
-	ShowSunriseSunset bool     `json:"showSunriseSunset"`
-	Sunrise           string   `json:"sunrise"`
-	Sunset            string   `json:"sunset"`
-	IsNight           bool     `json:"isNight"`
-	SkyColor          string   `json:"skyColor"`
-	Weather           weather  `json:"weather"`
-	Parents           []parent `json:"parents"`
-}
-
-type clocks struct {
-	RegionNumber zoneID `json:"213"`
-}
-
 type exactTime struct {
-	Time   int    `json:"time"`
-	Clocks clocks `json:"clocks"`
+	Time int `json:"time"`
 }
 
 var buttonsMarkup = tgbotapi.NewReplyKeyboard(
@@ -57,13 +27,22 @@ var timeURL = "https://yandex.com/time/sync.json?geo=213"
 
 const msInSec = 1000
 
+func checkOnAdditionalZero(dateValue string) string {
+	if len(dateValue) < 2 {
+		return "0" + dateValue
+	}
+
+	return dateValue
+}
+
 func getTimeAsString(timestamp int) string {
 	fullDate := time.Unix(int64(timestamp/msInSec), 0)
 	location, _ := time.LoadLocation("Europe/Moscow")
 	fullDateByLocation := fullDate.In(location)
-	hour := strconv.Itoa(fullDateByLocation.Hour())
-	minute := strconv.Itoa(fullDateByLocation.Minute())
-	second := strconv.Itoa(fullDateByLocation.Second())
+	hour := checkOnAdditionalZero(strconv.Itoa(fullDateByLocation.Hour()))
+	minute := checkOnAdditionalZero(strconv.Itoa(fullDateByLocation.Minute()))
+	second := checkOnAdditionalZero(strconv.Itoa(fullDateByLocation.Second()))
+
 	return fmt.Sprintf("%s : %s : %s", string(hour), string(minute), string(second))
 }
 
@@ -119,7 +98,6 @@ func main() {
 					log.Println(err)
 				}
 
-				getTimeAsString(data.Time)
 				msg.Text = getTimeAsString(data.Time)
 
 			default:
