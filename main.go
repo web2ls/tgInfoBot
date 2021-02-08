@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
@@ -77,6 +78,42 @@ func getCurrencyValue(data exhanges, mainCurrency []string) string {
 	return fmt.Sprintf("$%.2f ¢%.2f", usdValue, eurValue)
 }
 
+func getSpecificCurrency(data *exhanges, mainCurrency []string) map[string]float32 {
+	e := make(map[string]float32)
+	for _, value := range mainCurrency {
+		e[value] = data.Valute[value].Value
+	}
+	return e
+}
+
+func getCurrencyAsString(e *map[string]float32) string {
+	var usdValue float32
+	var eurValue float32
+
+	for key, value := range *e {
+		if key == "USD" {
+			usdValue = value
+		} else if key == "EUR" {
+			eurValue = value
+		}
+	}
+	return fmt.Sprintf("$%.2f ¢%.2f", usdValue, eurValue)
+}
+
+func getConvertedCurrencyValues(e *map[string]float32, param float32) string {
+	var usdConverted float32
+	var euroConverted float32
+
+	for key, value := range *e {
+		if key == "USD" {
+			usdConverted = value * param
+		} else if key == "EUR" {
+			euroConverted = value * param
+		}
+	}
+	return fmt.Sprintf("$%.2f, ¢%.2f", usdConverted, euroConverted)
+}
+
 func main() {
 	fmt.Println("Bot has been started...")
 
@@ -113,24 +150,9 @@ func main() {
 				mainCurrency := []string{"USD", "EUR"}
 				data := exhanges{}
 
-				res, err := http.Get(currencyURL)
-				if err != nil {
-					log.Println(err)
-				}
-
-				defer res.Body.Close()
-
-				body, err := ioutil.ReadAll(res.Body)
-				if err != nil {
-					log.Println(err)
-				}
-
-				err = json.Unmarshal(body, &data)
-				if err != nil {
-					log.Println(err)
-				}
-
-				msg.Text = getCurrencyValue(data, mainCurrency)
+				getCurrencySource(&data)
+				specificCurr := getSpecificCurrency(&data, mainCurrency)
+				msg.Text = getCurrencyAsString(&specificCurr)
 
 			case "Точное время (московское)":
 				data := exactTime{}
@@ -155,13 +177,49 @@ func main() {
 				msg.Text = getTimeAsString(data.Time)
 
 			default:
-				msg.Text = "I don't know what is this..."
+				if strings.HasPrefix(update.Message.Text, "$") {
+					// msg.Text = "10000000"
+					value, err := strconv.Atoi(update.Message.Text[1:])
+					if err != nil {
+						log.Panic(err)
+					}
+
+					mainCurrency := []string{"USD", "EUR"}
+					data := exhanges{}
+
+					getCurrencySource(&data)
+					specificCurr := getSpecificCurrency(&data, mainCurrency)
+					msg.Text = getConvertedCurrencyValues(&specificCurr, float32(value))
+				} else {
+					msg.Text = "I don't know what is this..."
+				}
 			}
 		}
-
 		msg.ReplyMarkup = buttonsMarkup
+
 		if _, err := bot.Send(msg); err != nil {
 			log.Println(err)
 		}
 	}
+}
+
+func getCurrencySource(data *exhanges) *exhanges {
+	res, err := http.Get(currencyURL)
+	if err != nil {
+		log.Println(err)
+	}
+
+	defer res.Body.Close()
+
+	body, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		log.Println(err)
+	}
+
+	err = json.Unmarshal(body, data)
+	if err != nil {
+		log.Println(err)
+	}
+
+	return data
 }
