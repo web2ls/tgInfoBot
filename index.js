@@ -24,14 +24,14 @@ function getTime() {
   })
 };
 
-function getCurrencyRates() {
+function getCurrencyRates(quantity = 1) {
   return new Promise(async (resolve, reject) => {
     try {
       const currency = await getCurrency();
       const USD = currency.Valute.USD.Value;
       const EUR = currency.Valute.EUR.Value;
 
-      resolve(`USD: ${USD.toFixed(2)} , EUR: ${EUR.toFixed(2)}`);
+      resolve(`USD: ${(USD * quantity).toFixed(2)} , EUR: ${(EUR * quantity).toFixed(2)}`);
     } catch (err) {
       reject(false);
     }
@@ -48,6 +48,17 @@ function getCurrency() {
   })
 }
 
+function isCurrencyExchange(value) {
+  if (value.startsWith('$')) {
+    const splitted = value.split('$');
+    return !isNaN(splitted[1]) ? true : false;
+  }
+};
+
+function getQuantity(value) {
+  return value.split('$')[1];
+};
+
 function getMenu() {
   return Markup.keyboard(['Точное московское время', 'Курсы валют']);
 };
@@ -61,7 +72,10 @@ bot.command('time', ctx => {
 });
 
 bot.on('message', async (ctx) => {
-  if (!COMMANDS[ctx.message.text]) {
+  if (isCurrencyExchange(ctx.message.text)) {
+    ctx.reply(await getCurrencyRates(getQuantity(ctx.message.text)));
+    return;
+  } else if (!COMMANDS[ctx.message.text]) {
     ctx.reply('Sorry, but i dont know what you want...');
     return;
   };
