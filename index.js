@@ -5,7 +5,7 @@ const axios = require('axios');
 const bot = new Telegraf(process.env.BOT_TOKEN);
 
 const TIME_URL = 'https://yandex.com/time/sync.json?geo=213';
-const CURRENCY_URL = 'https://currency-exchange.p.rapidapi.com/exchange';
+const CURRENCY_URL = 'https://www.cbr-xml-daily.ru/daily_json.js';
 const COMMANDS = {
   'Точное московское время': getTime,
   'Курсы валют': getCurrencyRates,
@@ -27,8 +27,10 @@ function getTime() {
 function getCurrencyRates() {
   return new Promise(async (resolve, reject) => {
     try {
-      const USD = await getCurrency('USD');
-      const EUR = await getCurrency('EUR');
+      const currency = await getCurrency();
+      const USD = currency.Valute.USD.Value;
+      const EUR = currency.Valute.EUR.Value;
+
       resolve(`USD: ${USD.toFixed(2)} , EUR: ${EUR.toFixed(2)}`);
     } catch (err) {
       reject(false);
@@ -36,17 +38,9 @@ function getCurrencyRates() {
   })
 };
 
-function getCurrency(currency = 'USD') {
+function getCurrency() {
   return new Promise((resolve, reject) => {
-    const headers = {
-      'X-RapidAPI-Host': 'currency-exchange.p.rapidapi.com',
-      'X-RapidAPI-Key': process.env.X_RAPID_KEY,
-    };
-    const params = {
-      from: currency,
-      to: 'RUB'
-    };
-    axios.get(CURRENCY_URL, { params, headers }).then(res => {
+    axios.get(CURRENCY_URL).then(res => {
       resolve(res.data);
     }).catch(err => {
       reject(false);
